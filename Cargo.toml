@@ -32,3 +32,4 @@ path = "src/server.rs"
 [[bin]]
 name = "client"
 path = "src/client.rs"
+

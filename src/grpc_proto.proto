@@ -9,6 +9,7 @@ service Say {
 // function which can be called
 rpc Send (SayRequest) returns (SayResponse);
 rpc Upload (UploadFile) returns (UploadResponse);
+rpc Download (DownloadFile) returns (DownloadResponse);
 }
 
 // argument
@@ -31,4 +32,13 @@ message UploadFile {
 
 message UploadResponse {
   string message = 1;
+}
+
+message DownloadFile {
+  string key = 1;
+}
+
+message DownloadResponse {
+  bytes image = 1;
+  string extension = 2;
 }

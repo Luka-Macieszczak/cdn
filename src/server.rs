@@ -1,11 +1,16 @@
 use tonic::{transport::Server, Request, Response, Status};
 use hello::say_server::{Say, SayServer};
-use hello::{SayResponse, SayRequest};
-use hello::{UploadFile, UploadResponse};
+use hello::{UploadFile,
+            UploadResponse,
+            DownloadFile,
+            DownloadResponse,
+            SayResponse,
+            SayRequest};
 use std::io::Write;
+use tokio::fs::File;
+use tokio::io::AsyncReadExt;
 use std::fs;
-use crate::db::put_file;
-
+use crate::db::{get_file, put_file};
 mod hello;
 mod db;
 
@@ -39,13 +44,25 @@ impl Say for MySay {
         
         file.write_all(&request.get_ref().image).expect("TODO: panic message");
 
-
-        // Need to spawn new thread for db functions
-        //put_file(path).await.expect("TODO: panic message");
+        let hash = put_file(path, request.get_ref().extension.clone()).await.expect("TODO: panic message");
 
         Ok(Response::new(UploadResponse{
-            // reading data from request which is awrapper around our SayRequest message defined in .proto
-            message:format!("hello {}", "Bob"),
+            message:hash,
+        }))
+    }
+
+    async fn download(&self, request: tonic::Request<DownloadFile>) -> Result<tonic::Response<DownloadResponse>, tonic::Status>{
+        let file_data = get_file(request.get_ref().key.clone()).await.expect("TODO: panic message");
+        let mut file = File::open(file_data.path).await?;
+
+        let mut contents: Vec<u8> = vec![];
+        file.read_to_end(&mut contents).await?;
+
+        println!("len = {}", contents.len());
+
+        Ok(Response::new(DownloadResponse{
+            image: contents,
+            extension: file_data.extension,
         }))
     }
 }
@@ -55,8 +72,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // defining address for our service
     let addr = "[::1]:50051".parse().unwrap();
 
-
-    put_file(String::from("Joe")).await.expect("TODO: panic message");
     // creating a service
     let say = MySay::default();
     println!("Server listening on {}", addr);

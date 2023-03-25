@@ -30,6 +30,20 @@ pub struct UploadResponse {
     #[prost(string, tag = "1")]
     pub message: ::prost::alloc::string::String,
 }
+#[allow(clippy::derive_partial_eq_without_eq)]
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct DownloadFile {
+    #[prost(string, tag = "1")]
+    pub key: ::prost::alloc::string::String,
+}
+#[allow(clippy::derive_partial_eq_without_eq)]
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct DownloadResponse {
+    #[prost(bytes = "vec", tag = "1")]
+    pub image: ::prost::alloc::vec::Vec<u8>,
+    #[prost(string, tag = "2")]
+    pub extension: ::prost::alloc::string::String,
+}
 /// Generated client implementations.
 pub mod say_client {
     #![allow(unused_variables, dead_code, missing_docs, clippy::let_unit_value)]
@@ -135,6 +149,23 @@ pub mod say_client {
             let path = http::uri::PathAndQuery::from_static("/hello.Say/Upload");
             self.inner.unary(request.into_request(), path, codec).await
         }
+        pub async fn download(
+            &mut self,
+            request: impl tonic::IntoRequest<super::DownloadFile>,
+        ) -> Result<tonic::Response<super::DownloadResponse>, tonic::Status> {
+            self.inner
+                .ready()
+                .await
+                .map_err(|e| {
+                    tonic::Status::new(
+                        tonic::Code::Unknown,
+                        format!("Service was not ready: {}", e.into()),
+                    )
+                })?;
+            let codec = tonic::codec::ProstCodec::default();
+            let path = http::uri::PathAndQuery::from_static("/hello.Say/Download");
+            self.inner.unary(request.into_request(), path, codec).await
+        }
     }
 }
 /// Generated server implementations.
@@ -153,6 +184,10 @@ pub mod say_server {
             &self,
             request: tonic::Request<super::UploadFile>,
         ) -> Result<tonic::Response<super::UploadResponse>, tonic::Status>;
+        async fn download(
+            &self,
+            request: tonic::Request<super::DownloadFile>,
+        ) -> Result<tonic::Response<super::DownloadResponse>, tonic::Status>;
     }
     /// service which can be executed
     #[derive(Debug)]
@@ -275,6 +310,42 @@ pub mod say_server {
                     let fut = async move {
                         let inner = inner.0;
                         let method = UploadSvc(inner);
+                        let codec = tonic::codec::ProstCodec::default();
+                        let mut grpc = tonic::server::Grpc::new(codec)
+                            .apply_compression_config(
+                                accept_compression_encodings,
+                                send_compression_encodings,
+                            );
+                        let res = grpc.unary(method, req).await;
+                        Ok(res)
+                    };
+                    Box::pin(fut)
+                }
+                "/hello.Say/Download" => {
+                    #[allow(non_camel_case_types)]
+                    struct DownloadSvc<T: Say>(pub Arc<T>);
+                    impl<T: Say> tonic::server::UnaryService<super::DownloadFile>
+                    for DownloadSvc<T> {
+                        type Response = super::DownloadResponse;
+                        type Future = BoxFuture<
+                            tonic::Response<Self::Response>,
+                            tonic::Status,
+                        >;
+                        fn call(
+                            &mut self,
+                            request: tonic::Request<super::DownloadFile>,
+                        ) -> Self::Future {
+                            let inner = self.0.clone();
+                            let fut = async move { (*inner).download(request).await };
+                            Box::pin(fut)
+                        }
+                    }
+                    let accept_compression_encodings = self.accept_compression_encodings;
+                    let send_compression_encodings = self.send_compression_encodings;
+                    let inner = self.inner.clone();
+                    let fut = async move {
+                        let inner = inner.0;
+                        let method = DownloadSvc(inner);
                         let codec = tonic::codec::ProstCodec::default();
                         let mut grpc = tonic::server::Grpc::new(codec)
                             .apply_compression_config(
