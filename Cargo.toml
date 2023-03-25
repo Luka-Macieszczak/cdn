@@ -1,0 +1,33 @@
+[package]
+name = "grpc_demo"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+tokio = { version = "1.26.0", features = ["full"] }
+tonic = "0.8.3"
+prost = "0.11.8"
+axum = { version = "0.6.11", features = ["multipart"] }
+serde = { version = "1.0.158", features = ["derive"] }
+http = "0.2.9"
+tower-http = { version = "0.4.0", features = ["cors"] }
+bytes = "1.4.0"
+tokio-util = { version = "0.7.7", features = ["io"] }
+postgres = "0.19.4"
+sha2 = "0.10.6"
+
+
+[build-dependencies]
+tonic-build = "0.8.3"
+
+# server binary
+[[bin]]
+name = "server"
+path = "src/server.rs"
+
+# client binary
+[[bin]]
+name = "client"
+path = "src/client.rs"
