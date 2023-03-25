@@ -54,6 +54,9 @@ impl Say for MySay {
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // defining address for our service
     let addr = "[::1]:50051".parse().unwrap();
+
+
+    put_file(String::from("Joe")).await.expect("TODO: panic message");
     // creating a service
     let say = MySay::default();
     println!("Server listening on {}", addr);

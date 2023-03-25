@@ -1,4 +1,4 @@
-use postgres::{Client, NoTls, Error};
+use tokio_postgres::{Client, NoTls, Error};
 use sha2::{Sha256, Digest};
 use std::error::Error as OtherError;
 /**
@@ -6,23 +6,29 @@ Store file path to database
 Generate unique hash for the file
 maybe append index to front of sha256 encoding of path (should be unique)
 */
-pub fn put_file(file_path: String) -> Result<String, Error> {
-    let mut client = Client::connect(
+pub async fn put_file(file_path: String) -> Result<String, Error> {
+    let (mut client, connection) = tokio_postgres::connect(
         "host=localhost user=admin password=password dbname=CDN",
         NoTls,
-    )?;
+    ).await?;
+
+    tokio::spawn(async move {
+        if let Err(e) = connection.await {
+            eprintln!("connection error: {}", e);
+        }
+    });
 
 
     client.batch_execute(
         "CREATE TABLE IF NOT EXISTS Images(ID Integer, FilePath VarChar(100), Key VarChar(100) Not Null Unique, PRIMARY KEY(ID))"
-    )?;
+    ).await?;
 
     // Get current highest index
     // Not particularly efficient, maybe can do better later
     // New id will be one above last
     let mut id = 1;
 
-    for row in client.query("SELECT id, filepath, key FROM images", &[])? {
+    for row in client.query("SELECT id, filepath, key FROM images", &[]).await? {
         if id < row.get(0){
             id = row.get(0)
         }
@@ -42,7 +48,7 @@ pub fn put_file(file_path: String) -> Result<String, Error> {
     client.execute(
         sql.as_str(),
         &[],
-    )?;
+    ).await?;
 
     Ok(hash)
 }

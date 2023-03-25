@@ -331,6 +331,7 @@ dependencies = [
  "serde",
  "sha2",
  "tokio",
+ "tokio-postgres",
  "tokio-util",
  "tonic",
  "tonic-build",
