@@ -89,14 +89,10 @@ async fn upload(mut multipart: Multipart) -> impl IntoResponse {
         }
         else if name == "key" {
             let key = field.text().await.unwrap().to_string();
-            match env::var("API_KEY") {
-                Ok(v) => {
-                    seen_key = true;
-                    if v != key{
-                        return (StatusCode::OK, Json(res))
-                    }
-                },
-                Err(e) => panic!("$not set ({})\n\n", e)
+            seen_key = true;
+            // Check to make sure api key is valid or present
+            if !verify_api_key(key){
+                return (StatusCode::OK, Json(res))
             }
         }
     }
@@ -110,28 +106,30 @@ async fn upload(mut multipart: Multipart) -> impl IntoResponse {
     (StatusCode::OK, Json(res))
 }
 
-async fn download(json: Json) -> impl IntoResponse {
-    // `File` implements `AsyncRead`
-    let file = match tokio::fs::File::open("Cargo.toml").await {
-        Ok(file) => file,
-        Err(err) => return Err((StatusCode::NOT_FOUND, format!("File not found: {}", err))),
-    };
-    // convert the `AsyncRead` into a `Stream`
-    let stream = ReaderStream::new(file);
-    // convert the `Stream` into an `axum::body::HttpBody`
-    let body = StreamBody::new(stream);
+#[derive(Deserialize)]
+struct DownloadOptions {
+    api_key: String,
+    file_key: String,
+}
 
-    let image_data = get_image()
+async fn download(Json(payload): Json<DownloadOptions>) -> impl IntoResponse {
+    if !verify_api_key(payload.api_key){
+        return vec![]
+    }
+    let file_data = get_file(payload.file_key).await.expect("TODO");
+    print!("File extension: {}", file_data.extension);
+
+    let content_type = format!("{}; charset=utf-8", file_data.extension.as_str());
 
     let headers = AppendHeaders([
-        ("content-type", "text/toml; charset=utf-8"),
+        ("content-type", content_type.as_str()),
         (
             "content-disposition",
             "attachment; filename=\"Cargo.toml\"",
         ),
     ]);
 
-    Ok((headers, body))
+    file_data.file
 }
 
 
@@ -166,7 +164,7 @@ async fn send_image(bytes: Vec<u8>, name: String, extension: String) -> Result<S
     // creating a new Request
     let request = tonic::Request::new(
         UploadFile {
-            image: bytes,
+            file: bytes,
             extension,
             name
         },
@@ -177,15 +175,12 @@ async fn send_image(bytes: Vec<u8>, name: String, extension: String) -> Result<S
     Ok(response.message)
 }
 
-struct ImageData {
-    pub(crate) image: Vec<u8>,
+struct FileData {
+    pub(crate) file: Vec<u8>,
     pub(crate) extension: String
 }
 
-async fn get_image(key: String) -> Result<ImageData, Box<dyn std::error::Error>> {
-    // creating a channel ie connection to server
-    print!("Bytes len: {}\n", bytes.len());
-
+async fn get_file(key: String) -> Result<FileData, Box<dyn std::error::Error>> {
     let channel = tonic::transport::Channel::from_static("http://[::1]:50051")
         .connect()
         .await?;
@@ -198,7 +193,14 @@ async fn get_image(key: String) -> Result<ImageData, Box<dyn std::error::Error>>
         },
     );
     // sending request and waiting for response
-    let response = client.upload(request).await?.into_inner();
-    let image_data = ImageData {image: response.image, extension: response.extension};
-    Ok(image_data)
+    let response = client.download(request).await?.into_inner();
+    let file_data = FileData {file: response.file, extension: response.extension};
+    Ok(file_data)
+}
+
+fn verify_api_key(key: String) -> bool {
+    match env::var("API_KEY") {
+        Ok(v) => return v == key,
+        Err(e) => panic!("$not set ({})\n\n", e)
+    }
 }

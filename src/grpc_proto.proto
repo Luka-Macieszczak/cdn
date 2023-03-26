@@ -25,7 +25,7 @@ string message = 1;
 }
 
 message UploadFile {
-  bytes image = 1;
+  bytes file = 1;
   string extension = 2;
   string name = 3;
 }
@@ -39,6 +39,6 @@ message DownloadFile {
 }
 
 message DownloadResponse {
-  bytes image = 1;
+  bytes file = 1;
   string extension = 2;
 }

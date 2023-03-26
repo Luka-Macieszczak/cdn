@@ -18,7 +18,7 @@ pub struct SayResponse {
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct UploadFile {
     #[prost(bytes = "vec", tag = "1")]
-    pub image: ::prost::alloc::vec::Vec<u8>,
+    pub file: ::prost::alloc::vec::Vec<u8>,
     #[prost(string, tag = "2")]
     pub extension: ::prost::alloc::string::String,
     #[prost(string, tag = "3")]
@@ -40,7 +40,7 @@ pub struct DownloadFile {
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct DownloadResponse {
     #[prost(bytes = "vec", tag = "1")]
-    pub image: ::prost::alloc::vec::Vec<u8>,
+    pub file: ::prost::alloc::vec::Vec<u8>,
     #[prost(string, tag = "2")]
     pub extension: ::prost::alloc::string::String,
 }

@@ -32,7 +32,7 @@ impl Say for MySay {
     }
 
     async fn upload(&self, request: tonic::Request<UploadFile>) -> Result<tonic::Response<UploadResponse>, tonic::Status> {
-        print!("BytesLen: {}\n", request.get_ref().image.len());
+        print!("BytesLen: {}\n", request.get_ref().file.len());
         let path = format!("/Users/lukamacieszczak/CLionProjects/grpc_demo/src/{}", request.get_ref().name);
 
         let mut file = fs::OpenOptions::new()
@@ -42,7 +42,7 @@ impl Say for MySay {
             // either use the ? operator or unwrap since it returns a Result
             .open(path.clone())?;
         
-        file.write_all(&request.get_ref().image).expect("TODO: panic message");
+        file.write_all(&request.get_ref().file).expect("TODO: panic message");
 
         let hash = put_file(path, request.get_ref().extension.clone()).await.expect("TODO: panic message");
 
@@ -61,7 +61,7 @@ impl Say for MySay {
         println!("len = {}", contents.len());
 
         Ok(Response::new(DownloadResponse{
-            image: contents,
+            file: contents,
             extension: file_data.extension,
         }))
     }
