@@ -10,7 +10,7 @@ use std::io::Write;
 use tokio::fs::File;
 use tokio::io::AsyncReadExt;
 use std::fs;
-use crate::db::{get_file, put_file};
+use crate::db::{get_file, get_info, put_file};
 mod hello;
 mod db;
 use std::path::Path;
@@ -35,7 +35,10 @@ impl Say for MySay {
 
     async fn upload(&self, request: tonic::Request<UploadFile>) -> Result<tonic::Response<UploadResponse>, tonic::Status> {
         print!("BytesLen: {}\n", request.get_ref().file.len());
-        let path = format!("/Users/lukamacieszczak/CLionProjects/grpc_demo/src/{}", request.get_ref().name);
+        let directory_path = format!("/Users/lukamacieszczak/CLionProjects/grpc_demo/src/uploads/");
+
+        let (hash, path, id) = get_info(request.get_ref().name.clone(), directory_path)
+            .await.expect("File info error");
 
         let mut file = fs::OpenOptions::new()
             // .create(true) // To create a new file
@@ -46,8 +49,8 @@ impl Say for MySay {
         
         file.write_all(&request.get_ref().file).expect("TODO: panic message");
 
-        let hash = put_file(path, request.get_ref().extension.clone(),
-                            request.get_ref().name.clone()).await.expect("TODO: panic message");
+        put_file(id, path, request.get_ref().extension.clone(),
+                            request.get_ref().name.clone(), hash.clone()).await.expect("TODO: panic message");
 
         Ok(Response::new(UploadResponse{
             message:hash,
