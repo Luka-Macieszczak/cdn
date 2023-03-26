@@ -13,6 +13,8 @@ use std::fs;
 use crate::db::{get_file, put_file};
 mod hello;
 mod db;
+use std::path::Path;
+use std::ffi::OsStr;
 
 // defining a struct for our service
 
@@ -44,7 +46,8 @@ impl Say for MySay {
         
         file.write_all(&request.get_ref().file).expect("TODO: panic message");
 
-        let hash = put_file(path, request.get_ref().extension.clone()).await.expect("TODO: panic message");
+        let hash = put_file(path, request.get_ref().extension.clone(),
+                            request.get_ref().name.clone()).await.expect("TODO: panic message");
 
         Ok(Response::new(UploadResponse{
             message:hash,
@@ -63,8 +66,15 @@ impl Say for MySay {
         Ok(Response::new(DownloadResponse{
             file: contents,
             extension: file_data.extension,
+            name: file_data.name
         }))
     }
+}
+
+fn get_extension_from_filename(filename: &str) -> Option<&str> {
+    Path::new(filename)
+        .extension()
+        .and_then(OsStr::to_str)
 }
 
 #[tokio::main]
@@ -81,4 +91,13 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .serve(addr)
         .await?;
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::get_extension_from_filename;
+    #[test]
+    fn file_extension_test(){
+        assert_eq!(get_extension_from_filename("abc.gz"), Some("gz"));
+    }
 }

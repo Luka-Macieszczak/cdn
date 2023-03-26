@@ -10,10 +10,11 @@ maybe append index to front of sha256 encoding of path (should be unique)
 
 pub struct FileData {
     pub(crate) extension: String,
-    pub(crate) path: String
+    pub(crate) path: String,
+    pub(crate) name: String
 }
 
-pub async fn put_file(file_path: String, extension: String) -> Result<String, Error> {
+pub async fn put_file(file_path: String, extension: String, name: String) -> Result<String, Error> {
     let (mut client, connection) = tokio_postgres::connect(
         "host=localhost user=admin password=password dbname=CDN",
         NoTls,
@@ -29,7 +30,7 @@ pub async fn put_file(file_path: String, extension: String) -> Result<String, Er
     client.batch_execute(
         "CREATE TABLE IF NOT EXISTS Images(ID Integer, \
         FilePath VarChar(100), Key VarChar(100) \
-        Not Null Unique, type VarChar(100), PRIMARY KEY(ID))"
+        Not Null Unique, type VarChar(100), name VarChar(100), PRIMARY KEY(ID))"
     ).await?;
 
     // Get current highest index
@@ -51,8 +52,9 @@ pub async fn put_file(file_path: String, extension: String) -> Result<String, Er
     let hash = format!("{}{:X}", id, sha256.finalize());
 
     // Insert new file
-    let sql = format!("INSERT INTO Images (id, filepath, key, type) VALUES ({}, '{}', '{}', '{}')",
-    id, file_path, hash, extension);
+    let sql = format!("INSERT INTO Images (id, filepath, key, type, name) \
+    VALUES ({}, '{}', '{}', '{}', '{}')",
+    id, file_path, hash, extension, name);
 
     client.execute(
         sql.as_str(),
@@ -74,9 +76,9 @@ pub async fn get_file(key: String) -> Result<FileData, Error> {
             eprintln!("connection error: {}", e);
         }
     });
-    let sql = format!("SELECT filepath, type FROM images where key='{}'", key);
+    let sql = format!("SELECT filepath, type, name FROM images where key='{}'", key);
     let res = client.query(sql.as_str(), &[]).await?;
-    let file_data = FileData { extension: res[0].get(1), path: res[0].get(0)};
+    let file_data = FileData { extension: res[0].get(1), path: res[0].get(0), name: res[0].get(2)};
     Ok(file_data)
 }
 

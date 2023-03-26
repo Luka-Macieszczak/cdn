@@ -41,4 +41,5 @@ message DownloadFile {
 message DownloadResponse {
   bytes file = 1;
   string extension = 2;
+  string name = 3;
 }

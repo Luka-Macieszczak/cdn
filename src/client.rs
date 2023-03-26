@@ -16,6 +16,7 @@ use serde::{Deserialize, Serialize};
 use hello::SayRequest;
 use crate::hello::{DownloadFile, UploadFile};
 use std::env;
+use std::fmt::Error;
 use tokio_util::io::ReaderStream;
 
 mod hello;
@@ -113,23 +114,22 @@ struct DownloadOptions {
 }
 
 async fn download(Json(payload): Json<DownloadOptions>) -> impl IntoResponse {
-    if !verify_api_key(payload.api_key){
-        return vec![]
-    }
+    // UNCOMMENT THIS
+    // IMPORTANT -> FIGURE OUT
+    /*if !verify_api_key(payload.api_key){
+        Ok((headers, file_data.file))
+    }*/
     let file_data = get_file(payload.file_key).await.expect("TODO");
-    print!("File extension: {}", file_data.extension);
-
-    let content_type = format!("{}; charset=utf-8", file_data.extension.as_str());
+    print!("\n\nFile extension: {}\n\n", file_data.extension);
 
     let headers = AppendHeaders([
-        ("content-type", content_type.as_str()),
         (
-            "content-disposition",
-            "attachment; filename=\"Cargo.toml\"",
-        ),
+            header::CONTENT_DISPOSITION,
+            format!("attachment; filename=\"{}\"", file_data.name),
+        )
     ]);
 
-    file_data.file
+    (StatusCode::OK, headers, Json(file_data))
 }
 
 
@@ -174,10 +174,11 @@ async fn send_image(bytes: Vec<u8>, name: String, extension: String) -> Result<S
     println!("RESPONSE={:?}", response.message);
     Ok(response.message)
 }
-
+#[derive(Serialize)]
 struct FileData {
     pub(crate) file: Vec<u8>,
-    pub(crate) extension: String
+    pub(crate) extension: String,
+    pub(crate) name: String
 }
 
 async fn get_file(key: String) -> Result<FileData, Box<dyn std::error::Error>> {
@@ -194,7 +195,7 @@ async fn get_file(key: String) -> Result<FileData, Box<dyn std::error::Error>> {
     );
     // sending request and waiting for response
     let response = client.download(request).await?.into_inner();
-    let file_data = FileData {file: response.file, extension: response.extension};
+    let file_data = FileData {file: response.file, extension: response.extension, name: response.name};
     Ok(file_data)
 }
 

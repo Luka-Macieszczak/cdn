@@ -43,6 +43,8 @@ pub struct DownloadResponse {
     pub file: ::prost::alloc::vec::Vec<u8>,
     #[prost(string, tag = "2")]
     pub extension: ::prost::alloc::string::String,
+    #[prost(string, tag = "3")]
+    pub name: ::prost::alloc::string::String,
 }
 /// Generated client implementations.
 pub mod say_client {
