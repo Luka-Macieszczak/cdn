@@ -114,14 +114,7 @@ struct DownloadOptions {
 }
 
 async fn download(Json(payload): Json<DownloadOptions>) -> impl IntoResponse {
-    // UNCOMMENT THIS
-    // IMPORTANT -> FIGURE OUT
-    /*if !verify_api_key(payload.api_key){
-        Ok((headers, file_data.file))
-    }*/
     let file_data = get_file(payload.file_key).await.expect("TODO");
-    print!("\n\nFile extension: {}\n\n", file_data.extension);
-
     let headers = AppendHeaders([
         (
             header::CONTENT_DISPOSITION,
@@ -129,7 +122,12 @@ async fn download(Json(payload): Json<DownloadOptions>) -> impl IntoResponse {
         )
     ]);
 
-    (StatusCode::OK, headers, Json(file_data))
+    if !verify_api_key(payload.api_key){
+        return (StatusCode::BAD_REQUEST, headers, vec![])
+    }
+
+    print!("\n\nFile extension: {}\n\n", file_data.extension);
+    (StatusCode::OK, headers, file_data.file)
 }
 
 
