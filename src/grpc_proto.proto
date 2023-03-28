@@ -28,6 +28,9 @@ message UploadFile {
   bytes file = 1;
   string extension = 2;
   string name = 3;
+  string hash = 4;
+  string path = 5;
+  int32 id = 6;
 }
 
 message UploadResponse {

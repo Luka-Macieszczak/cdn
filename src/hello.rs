@@ -23,6 +23,12 @@ pub struct UploadFile {
     pub extension: ::prost::alloc::string::String,
     #[prost(string, tag = "3")]
     pub name: ::prost::alloc::string::String,
+    #[prost(string, tag = "4")]
+    pub hash: ::prost::alloc::string::String,
+    #[prost(string, tag = "5")]
+    pub path: ::prost::alloc::string::String,
+    #[prost(int32, tag = "6")]
+    pub id: i32,
 }
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]

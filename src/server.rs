@@ -33,27 +33,20 @@ impl Say for MySay {
         }))
     }
 
-    async fn upload(&self, request: tonic::Request<UploadFile>) -> Result<tonic::Response<UploadResponse>, tonic::Status> {
+    async fn upload(&self, request: Request<UploadFile>) -> Result<Response<UploadResponse>, Status> {
         print!("BytesLen: {}\n", request.get_ref().file.len());
-        let directory_path = format!("/Users/lukamacieszczak/CLionProjects/grpc_demo/src/uploads/");
-
-        let (hash, path, id) = get_info(request.get_ref().name.clone(), directory_path)
-            .await.expect("File info error");
 
         let mut file = fs::OpenOptions::new()
             // .create(true) // To create a new file
             .write(true)
             .create(true)
             // either use the ? operator or unwrap since it returns a Result
-            .open(path.clone())?;
+            .open(request.get_ref().path.clone())?;
         
         file.write_all(&request.get_ref().file).expect("TODO: panic message");
 
-        put_file(id, path, request.get_ref().extension.clone(),
-                            request.get_ref().name.clone(), hash.clone()).await.expect("TODO: panic message");
-
         Ok(Response::new(UploadResponse{
-            message:hash,
+            message:request.get_ref().hash.clone(),
         }))
     }
 

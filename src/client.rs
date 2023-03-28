@@ -18,7 +18,8 @@ use crate::hello::{DownloadFile, UploadFile};
 use std::env;
 use std::fmt::Error;
 use tokio_util::io::ReaderStream;
-
+use crate::db::{get_info, put_file};
+mod db;
 mod hello;
 #[tokio::main]
 async fn main() {
@@ -76,7 +77,6 @@ async fn upload(mut multipart: Multipart) -> impl IntoResponse {
     };
     while let Some(mut field) = multipart.next_field().await.unwrap() {
         let name = field.name().unwrap().to_string();
-
         /// Clean this whole block
         /// I might be sick
         if name == "data" {
@@ -101,8 +101,15 @@ async fn upload(mut multipart: Multipart) -> impl IntoResponse {
     if !seen_key{
         return (StatusCode::OK, Json(res))
     }
+    let directory_path = format!("/Users/lukamacieszczak/CLionProjects/grpc_demo/src/uploads/");
+    let (hash, path, id) = get_info(file_name.clone(), directory_path)
+        .await.expect("File info error");
+
+    put_file(id, path.clone(), extension.clone(),
+             file_name.clone(), hash.clone()).await.expect("TODO: panic message");
+
     println!("length is {} name is {} extension is {}", bytes.len(), file_name, extension);
-    res.key = send_image(bytes.to_vec(), file_name, extension).await.expect("TODO: panic message");
+    res.key = send_image(bytes.to_vec(), file_name, extension, hash, path, id).await.expect("TODO: panic message");
     res.success = 1;
     (StatusCode::OK, Json(res))
 }
@@ -150,7 +157,8 @@ async fn send_hello(message: String) -> Result<(), Box<dyn std::error::Error>> {
     Ok(())
 }
 
-async fn send_image(bytes: Vec<u8>, name: String, extension: String) -> Result<String, Box<dyn std::error::Error>> {
+async fn send_image(bytes: Vec<u8>, name: String, extension: String, hash: String, path: String, id: i32)
+    -> Result<String, Box<dyn std::error::Error>> {
     // creating a channel ie connection to server
     print!("Bytes len: {}\n", bytes.len());
 
@@ -164,7 +172,10 @@ async fn send_image(bytes: Vec<u8>, name: String, extension: String) -> Result<S
         UploadFile {
             file: bytes,
             extension,
-            name
+            name,
+            hash,
+            path,
+            id
         },
     );
     // sending request and waiting for response
