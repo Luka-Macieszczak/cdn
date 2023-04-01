@@ -18,6 +18,7 @@ tokio-util = { version = "0.7.7", features = ["io"] }
 postgres = "0.19.4"
 tokio-postgres = "0.7.7"
 sha2 = "0.10.6"
+axum-macros = "0.3.7"
 
 
 [build-dependencies]

@@ -13,8 +13,10 @@ use std::fs;
 use crate::db::{get_file, get_info, put_file};
 mod hello;
 mod db;
+mod server_constants;
 use std::path::Path;
 use std::ffi::OsStr;
+use crate::server_constants::GRPC_CHANNEL;
 
 // defining a struct for our service
 
@@ -43,15 +45,15 @@ impl Say for MySay {
             // either use the ? operator or unwrap since it returns a Result
             .open(request.get_ref().path.clone())?;
         
-        file.write_all(&request.get_ref().file).expect("TODO: panic message");
+        file.write_all(&request.get_ref().file).expect("Write error");
 
         Ok(Response::new(UploadResponse{
             message:request.get_ref().hash.clone(),
         }))
     }
 
-    async fn download(&self, request: tonic::Request<DownloadFile>) -> Result<tonic::Response<DownloadResponse>, tonic::Status>{
-        let file_data = get_file(request.get_ref().key.clone()).await.expect("TODO: panic message");
+    async fn download(&self, request: Request<DownloadFile>) -> Result<Response<DownloadResponse>, Status>{
+        let file_data = get_file(request.get_ref().key.clone()).await.expect("File read error");
         let mut file = File::open(file_data.path).await?;
 
         let mut contents: Vec<u8> = vec![];
@@ -76,7 +78,7 @@ fn get_extension_from_filename(filename: &str) -> Option<&str> {
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // defining address for our service
-    let addr = "[::1]:50051".parse().unwrap();
+    let addr = GRPC_CHANNEL.parse().unwrap();
 
     // creating a service
     let say = MySay::default();

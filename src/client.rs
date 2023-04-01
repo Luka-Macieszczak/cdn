@@ -1,6 +1,11 @@
 use hello::say_client::SayClient;
+use std::sync::mpsc;
+use std::thread;
+use std::sync::Arc;
 use http::{Method};
+use axum_macros::debug_handler;
 use axum::{routing::get,
+           extract::State,
            routing::post,
            Router, Json,
            extract::Multipart,
@@ -17,12 +22,42 @@ use hello::SayRequest;
 use crate::hello::{DownloadFile, UploadFile};
 use std::env;
 use std::fmt::Error;
+use std::sync::mpsc::Sender;
 use tokio_util::io::ReaderStream;
+use crate::client_constants::{DIRECTORY_PATH, GRPC_CHANNEL};
 use crate::db::{get_info, put_file};
 mod db;
 mod hello;
+mod client_constants;
+
+
+struct UploadFields {
+    file: Vec<u8>,
+    extension: String,
+    name: String,
+    hash: String,
+    path: String,
+    id: i32
+}
+
 #[tokio::main]
 async fn main() {
+    let (tx, receiver) = mpsc::channel();
+
+    thread::spawn(move || {
+        let received: UploadFields = receiver.recv().unwrap();
+        println!("{}", received.hash);
+    });
+
+    let transmitter = Arc::new(tx);
+    transmitter.send(UploadFields{
+        file: vec![],
+        extension: "".to_string(),
+        name: "".to_string(),
+        hash: "Test".to_string(),
+        path: "".to_string(),
+        id: 0
+    }).expect("Upload Failure");
 
     let cors = CorsLayer::new()
         .allow_methods([Method::GET, Method::POST])
@@ -34,11 +69,9 @@ async fn main() {
         .route("/upload", post(upload))
         .layer(DefaultBodyLimit::max(16777216))
         .layer(cors);
-    //        Router::new().route("/", get(|| async { "Hello, world!" }));
     // Address that server will bind to.
     let addr = SocketAddr::from(([127, 0, 0, 1], 4041));
 
-    // Use `hyper::server::Server` which is re-exported through `axum::Server` to serve the app.
     axum::Server::bind(&addr)
         // Hyper server takes a make service.
         .serve(app.into_make_service())
@@ -50,8 +83,6 @@ async fn handler() -> &'static str {
     send_hello(String::from("Luka")).await.expect("TODO: panic message");
     "Hello, world!"
 }
-
-
 
 async fn test() -> impl IntoResponse {
     //send_hello(payload.message).await.expect("TODO: panic message");
@@ -66,8 +97,9 @@ struct UploadResponse {
     success: i32
 }
 
+#[debug_handler]
 async fn upload(mut multipart: Multipart) -> impl IntoResponse {
-    let mut bytes = Bytes::from_static(b"hello");
+    let mut bytes = Bytes::from_static(b"");
     let mut file_name = String::from("");
     let mut extension = String::from("");
     let mut seen_key = false;
@@ -75,41 +107,39 @@ async fn upload(mut multipart: Multipart) -> impl IntoResponse {
         key: "".parse().unwrap(),
         success: 0
     };
+
+    // Go through all parts of the request and set appropriate variables
     while let Some(mut field) = multipart.next_field().await.unwrap() {
         let name = field.name().unwrap().to_string();
-        /// Clean this whole block
-        /// I might be sick
-        if name == "data" {
-            bytes = field.bytes().await.unwrap();
-        }
-        else if name == "name" {
-            file_name = field.text().await.unwrap().to_string();
-        }
-        else if name == "extension" {
-            extension = field.text().await.unwrap().to_string();
-        }
-        else if name == "key" {
-            let key = field.text().await.unwrap().to_string();
-            seen_key = true;
-            // Check to make sure api key is valid or present
-            if !verify_api_key(key){
-                return (StatusCode::OK, Json(res))
+        match name.as_str() {
+            "data" => bytes = field.bytes().await.unwrap(),
+            "name" => file_name = field.text().await.unwrap().to_string(),
+            "extension" => extension = field.text().await.unwrap().to_string(),
+            "key" => {
+                let key = field.text().await.unwrap().to_string();
+                seen_key = true;
+
+                if !verify_api_key(key){
+                    return (StatusCode::OK, Json(res))
+                }
             }
+            _ => {}
         }
     }
     // Don't continue if there was no key
     if !seen_key{
         return (StatusCode::OK, Json(res))
     }
-    let directory_path = format!("/Users/lukamacieszczak/CLionProjects/grpc_demo/src/uploads/");
-    let (hash, path, id) = get_info(file_name.clone(), directory_path)
+
+    let (hash, path, id) = get_info(file_name.clone(), String::from(DIRECTORY_PATH))
         .await.expect("File info error");
 
     put_file(id, path.clone(), extension.clone(),
-             file_name.clone(), hash.clone()).await.expect("TODO: panic message");
+             file_name.clone(), hash.clone()).await.expect("Database insert failure");
 
     println!("length is {} name is {} extension is {}", bytes.len(), file_name, extension);
-    res.key = send_image(bytes.to_vec(), file_name, extension, hash, path, id).await.expect("TODO: panic message");
+    res.key = hash.clone();
+    send_image(bytes.to_vec(), file_name, extension, hash, path, id).await.expect("GRPC upload failure");
     res.success = 1;
     (StatusCode::OK, Json(res))
 }
@@ -121,7 +151,7 @@ struct DownloadOptions {
 }
 
 async fn download(Json(payload): Json<DownloadOptions>) -> impl IntoResponse {
-    let file_data = get_file(payload.file_key).await.expect("TODO");
+    let file_data = get_file(payload.file_key).await.expect("File retrieval failure");
     let headers = AppendHeaders([
         (
             header::CONTENT_DISPOSITION,
@@ -129,6 +159,7 @@ async fn download(Json(payload): Json<DownloadOptions>) -> impl IntoResponse {
         )
     ]);
 
+    // FIX THIS
     if !verify_api_key(payload.api_key){
         return (StatusCode::BAD_REQUEST, headers, vec![])
     }
@@ -140,7 +171,7 @@ async fn download(Json(payload): Json<DownloadOptions>) -> impl IntoResponse {
 
 async fn send_hello(message: String) -> Result<(), Box<dyn std::error::Error>> {
     // creating a channel ie connection to server
-    let channel = tonic::transport::Channel::from_static("http://[::1]:50051")
+    let channel = tonic::transport::Channel::from_static(GRPC_CHANNEL)
         .connect()
         .await?;
     // creating gRPC client from channel
@@ -162,7 +193,7 @@ async fn send_image(bytes: Vec<u8>, name: String, extension: String, hash: Strin
     // creating a channel ie connection to server
     print!("Bytes len: {}\n", bytes.len());
 
-    let channel = tonic::transport::Channel::from_static("http://[::1]:50051")
+    let channel = tonic::transport::Channel::from_static(GRPC_CHANNEL)
         .connect()
         .await?;
     // creating gRPC client from channel
@@ -191,7 +222,7 @@ struct FileData {
 }
 
 async fn get_file(key: String) -> Result<FileData, Box<dyn std::error::Error>> {
-    let channel = tonic::transport::Channel::from_static("http://[::1]:50051")
+    let channel = tonic::transport::Channel::from_static(GRPC_CHANNEL)
         .connect()
         .await?;
     // creating gRPC client from channel

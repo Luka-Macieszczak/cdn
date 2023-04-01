@@ -2,11 +2,8 @@ use tokio_postgres::{Client, Socket, NoTls, Error, Connection};
 use sha2::{Sha256, Digest};
 use std::error::Error as OtherError;
 
-/**
-Store file path to database
-Generate unique hash for the file
-maybe append index to front of sha256 encoding of path (should be unique)
-*/
+
+const POSTGRES_CONFIG: &str = "host=localhost user=admin password=password dbname=CDN";
 
 pub struct FileData {
     pub(crate) extension: String,
@@ -21,7 +18,7 @@ pub async fn get_info(name: String, directory_path: String) -> Result<(String, S
     // Not particularly efficient, maybe can do better later
     // New id will be one above last
     let (client, connection) = tokio_postgres::connect(
-        "host=localhost user=admin password=password dbname=CDN",
+        POSTGRES_CONFIG,
         NoTls,
     ).await?;
 
@@ -59,7 +56,7 @@ pub async fn get_info(name: String, directory_path: String) -> Result<(String, S
 
 pub async fn put_file(id: i32, file_path: String, extension: String, name: String, hash: String) -> Result<(), Error> {
     let (client, connection) = tokio_postgres::connect(
-        "host=localhost user=admin password=password dbname=CDN",
+        POSTGRES_CONFIG,
         NoTls,
     ).await?;
 
@@ -92,7 +89,7 @@ pub async fn put_file(id: i32, file_path: String, extension: String, name: Strin
 
 pub async fn get_file(key: String) -> Result<FileData, Error> {
     let (mut client, connection) = tokio_postgres::connect(
-        "host=localhost user=admin password=password dbname=CDN",
+        POSTGRES_CONFIG,
         NoTls,
     ).await?;
 
