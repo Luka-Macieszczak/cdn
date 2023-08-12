@@ -41,16 +41,18 @@ pub struct UploadResponse {
 pub struct DownloadFile {
     #[prost(string, tag = "1")]
     pub key: ::prost::alloc::string::String,
+    #[prost(string, tag = "2")]
+    pub path: ::prost::alloc::string::String,
+    #[prost(string, tag = "3")]
+    pub extension: ::prost::alloc::string::String,
+    #[prost(string, tag = "4")]
+    pub name: ::prost::alloc::string::String,
 }
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct DownloadResponse {
     #[prost(bytes = "vec", tag = "1")]
     pub file: ::prost::alloc::vec::Vec<u8>,
-    #[prost(string, tag = "2")]
-    pub extension: ::prost::alloc::string::String,
-    #[prost(string, tag = "3")]
-    pub name: ::prost::alloc::string::String,
 }
 /// Generated client implementations.
 pub mod say_client {
@@ -137,7 +139,7 @@ pub mod say_client {
                     )
                 })?;
             let codec = tonic::codec::ProstCodec::default();
-            let path = http::uri::PathAndQuery::from_static("/hello.Say/Send");
+            let path = http::uri::PathAndQuery::from_static("/proto.Say/Send");
             self.inner.unary(request.into_request(), path, codec).await
         }
         pub async fn upload(
@@ -154,7 +156,7 @@ pub mod say_client {
                     )
                 })?;
             let codec = tonic::codec::ProstCodec::default();
-            let path = http::uri::PathAndQuery::from_static("/hello.Say/Upload");
+            let path = http::uri::PathAndQuery::from_static("/proto.Say/Upload");
             self.inner.unary(request.into_request(), path, codec).await
         }
         pub async fn download(
@@ -171,7 +173,7 @@ pub mod say_client {
                     )
                 })?;
             let codec = tonic::codec::ProstCodec::default();
-            let path = http::uri::PathAndQuery::from_static("/hello.Say/Download");
+            let path = http::uri::PathAndQuery::from_static("/proto.Say/Download");
             self.inner.unary(request.into_request(), path, codec).await
         }
     }
@@ -257,7 +259,7 @@ pub mod say_server {
         fn call(&mut self, req: http::Request<B>) -> Self::Future {
             let inner = self.inner.clone();
             match req.uri().path() {
-                "/hello.Say/Send" => {
+                "/proto.Say/Send" => {
                     #[allow(non_camel_case_types)]
                     struct SendSvc<T: Say>(pub Arc<T>);
                     impl<T: Say> tonic::server::UnaryService<super::SayRequest>
@@ -293,7 +295,7 @@ pub mod say_server {
                     };
                     Box::pin(fut)
                 }
-                "/hello.Say/Upload" => {
+                "/proto.Say/Upload" => {
                     #[allow(non_camel_case_types)]
                     struct UploadSvc<T: Say>(pub Arc<T>);
                     impl<T: Say> tonic::server::UnaryService<super::UploadFile>
@@ -329,7 +331,7 @@ pub mod say_server {
                     };
                     Box::pin(fut)
                 }
-                "/hello.Say/Download" => {
+                "/proto.Say/Download" => {
                     #[allow(non_camel_case_types)]
                     struct DownloadSvc<T: Say>(pub Arc<T>);
                     impl<T: Say> tonic::server::UnaryService<super::DownloadFile>
@@ -401,6 +403,6 @@ pub mod say_server {
         }
     }
     impl<T: Say> tonic::server::NamedService for SayServer<T> {
-        const NAME: &'static str = "hello.Say";
+        const NAME: &'static str = "proto.Say";
     }
 }

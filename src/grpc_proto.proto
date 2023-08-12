@@ -2,7 +2,7 @@
 syntax = "proto3";
 
 // package name for the buffer will be used later
-package hello;
+package proto;
 
 // service which can be executed
 service Say {
@@ -39,10 +39,11 @@ message UploadResponse {
 
 message DownloadFile {
   string key = 1;
+  string path = 2;
+  string extension = 3;
+  string name = 4;
 }
 
 message DownloadResponse {
   bytes file = 1;
-  string extension = 2;
-  string name = 3;
 }

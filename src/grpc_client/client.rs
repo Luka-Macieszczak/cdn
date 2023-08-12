@@ -1,7 +1,4 @@
-use hello::say_client::SayClient;
-use std::sync::mpsc;
-use std::thread;
-use std::sync::Arc;
+use proto::say_client::SayClient;
 use http::{Method};
 use axum_macros::debug_handler;
 use axum::{routing::get,
@@ -18,47 +15,20 @@ use bytes::Bytes;
 use std::net::SocketAddr;
 use tower_http::cors::{Any, CorsLayer};
 use serde::{Deserialize, Serialize};
-use hello::SayRequest;
-use crate::hello::{DownloadFile, UploadFile};
+use proto::SayRequest;
+use crate::proto::{DownloadFile, UploadFile};
 use std::env;
 use std::fmt::Error;
 use std::sync::mpsc::Sender;
 use tokio_util::io::ReaderStream;
 use crate::client_constants::{DIRECTORY_PATH, GRPC_CHANNEL};
-use crate::db::{get_info, put_file};
-mod db;
-mod hello;
+use crate::db::{get_info, put_file, get_file_from_db};
+use cdn::db;
+use cdn::proto;
 mod client_constants;
-
-
-struct UploadFields {
-    file: Vec<u8>,
-    extension: String,
-    name: String,
-    hash: String,
-    path: String,
-    id: i32
-}
 
 #[tokio::main]
 async fn main() {
-    let (tx, receiver) = mpsc::channel();
-
-    thread::spawn(move || {
-        let received: UploadFields = receiver.recv().unwrap();
-        println!("{}", received.hash);
-    });
-
-    let transmitter = Arc::new(tx);
-    transmitter.send(UploadFields{
-        file: vec![],
-        extension: "".to_string(),
-        name: "".to_string(),
-        hash: "Test".to_string(),
-        path: "".to_string(),
-        id: 0
-    }).expect("Upload Failure");
-
     let cors = CorsLayer::new()
         .allow_methods([Method::GET, Method::POST])
         .allow_origin(Any);
@@ -109,7 +79,7 @@ async fn upload(mut multipart: Multipart) -> impl IntoResponse {
     };
 
     // Go through all parts of the request and set appropriate variables
-    while let Some(mut field) = multipart.next_field().await.unwrap() {
+    while let Some(field) = multipart.next_field().await.unwrap() {
         let name = field.name().unwrap().to_string();
         match name.as_str() {
             "data" => bytes = field.bytes().await.unwrap(),
@@ -225,17 +195,21 @@ async fn get_file(key: String) -> Result<FileData, Box<dyn std::error::Error>> {
     let channel = tonic::transport::Channel::from_static(GRPC_CHANNEL)
         .connect()
         .await?;
+    let file_info = get_file_from_db(key.clone()).await.expect("File read error");
     // creating gRPC client from channel
     let mut client = SayClient::new(channel);
     // creating a new Request
     let request = tonic::Request::new(
         DownloadFile {
-            key
+            key,
+            path: file_info.path,
+            extension: file_info.extension.clone(),
+            name: file_info.name.clone()
         },
     );
     // sending request and waiting for response
     let response = client.download(request).await?.into_inner();
-    let file_data = FileData {file: response.file, extension: response.extension, name: response.name};
+    let file_data = FileData {file: response.file, extension: file_info.extension, name: file_info.name};
     Ok(file_data)
 }
 

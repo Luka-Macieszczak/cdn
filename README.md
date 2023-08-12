@@ -8,3 +8,4 @@
 - Url for file location
 - Database
 - Fix api key issue
+- Make sure no failed uploads store information to database

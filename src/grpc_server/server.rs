@@ -1,6 +1,6 @@
 use tonic::{transport::Server, Request, Response, Status};
-use hello::say_server::{Say, SayServer};
-use hello::{UploadFile,
+use proto::say_server::{Say, SayServer};
+use proto::{UploadFile,
             UploadResponse,
             DownloadFile,
             DownloadResponse,
@@ -10,9 +10,9 @@ use std::io::Write;
 use tokio::fs::File;
 use tokio::io::AsyncReadExt;
 use std::fs;
-use crate::db::{get_file, get_info, put_file};
-mod hello;
-mod db;
+use cdn::proto;
+use crate::db::{get_info, put_file};
+use cdn::db;
 mod server_constants;
 use std::path::Path;
 use std::ffi::OsStr;
@@ -53,8 +53,9 @@ impl Say for MySay {
     }
 
     async fn download(&self, request: Request<DownloadFile>) -> Result<Response<DownloadResponse>, Status>{
-        let file_data = get_file(request.get_ref().key.clone()).await.expect("File read error");
-        let mut file = File::open(file_data.path).await?;
+        // Should move file data to other server and send it over request
+        //let file_data = get_file(request.get_ref().key.clone()).await.expect("File read error");
+        let mut file = File::open(request.get_ref().path.clone()).await?;
 
         let mut contents: Vec<u8> = vec![];
         file.read_to_end(&mut contents).await?;
@@ -62,9 +63,7 @@ impl Say for MySay {
         println!("len = {}", contents.len());
 
         Ok(Response::new(DownloadResponse{
-            file: contents,
-            extension: file_data.extension,
-            name: file_data.name
+            file: contents
         }))
     }
 }

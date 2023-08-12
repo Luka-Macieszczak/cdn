@@ -5,10 +5,10 @@ use std::error::Error as OtherError;
 
 const POSTGRES_CONFIG: &str = "host=localhost user=admin password=password dbname=CDN";
 
-pub struct FileData {
-    pub(crate) extension: String,
-    pub(crate) path: String,
-    pub(crate) name: String
+pub struct FileInfo {
+    pub extension: String,
+    pub path: String,
+    pub name: String
 }
 
 /// name = name of uploaded file. Will not be modified, but will have a different path
@@ -87,7 +87,7 @@ pub async fn put_file(id: i32, file_path: String, extension: String, name: Strin
 }
 
 
-pub async fn get_file(key: String) -> Result<FileData, Error> {
+pub async fn get_file_from_db(key: String) -> Result<FileInfo, Error> {
     let (mut client, connection) = tokio_postgres::connect(
         POSTGRES_CONFIG,
         NoTls,
@@ -100,7 +100,7 @@ pub async fn get_file(key: String) -> Result<FileData, Error> {
     });
     let sql = format!("SELECT filepath, type, name FROM images where key='{}'", key);
     let res = client.query(sql.as_str(), &[]).await?;
-    let file_data = FileData { extension: res[0].get(1), path: res[0].get(0), name: res[0].get(2)};
+    let file_data = FileInfo { extension: res[0].get(1), path: res[0].get(0), name: res[0].get(2)};
     Ok(file_data)
 }
 

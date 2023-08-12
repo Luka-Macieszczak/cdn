@@ -1,1 +1,0 @@
-pub(crate) const GRPC_CHANNEL: &str = "[::1]:50051";
