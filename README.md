@@ -1,11 +1,2 @@
-# TODO
-- Add config stuff
-- Ip addresses
-- Ports
-- Add fields to grpc
-- Filename
-- File extension
-- Url for file location
-- Database
-- Fix api key issue
-- Make sure no failed uploads store information to database
+## Personal CDN
+I would consider making this into a legit CDN if I wasn't broke 😢
